@@ -1,0 +1,15 @@
+PACKAGE_NAME="broadcom-wl"
+PACKAGE_VERSION="@PACKAGE_VERSION@"
+BUILT_MODULE_NAME[0]="wl"
+DEST_MODULE_LOCATION[0]="/kernel/drivers/net/wireless"
+PATCH[0]="001-null-pointer-fix.patch"
+PATCH[1]="002-rdtscl.patch"
+PATCH[2]="003-linux47.patch"
+PATCH[3]="004-linux48.patch"
+PATCH[4]="005-debian-fix-kernel-warnings.patch"
+PATCH[5]="099-kernel-7.0-compat.patch"
+# Broadcom's shipped wlc_hybrid.o_shipped blob predates objtool/IBT
+# annotations entirely; there's no source to fix it, so skip objtool
+# validation for this module's build only.
+MAKE[0]="make -C \$kernel_source_dir M=\$dkms_tree/\$module/\$module_version/build objtool=/bin/true"
+AUTOINSTALL="yes"

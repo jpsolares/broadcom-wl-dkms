@@ -1,0 +1,458 @@
+diff -ruN '--exclude=*.o' '--exclude=*.cmd' '--exclude=*.mod*' '--exclude=.*.o.d' '--exclude=Module.symvers' '--exclude=modules.order' src.baseline/shared/linux_osl.c src/shared/linux_osl.c
+--- a/src/shared/linux_osl.c	2026-06-20 20:01:42.976898236 +1200
++++ b/src/shared/linux_osl.c	2026-06-20 20:03:57.924067215 +1200
+@@ -600,7 +600,7 @@
+ 	if (va)
+ 		*pap = (ulong)__virt_to_phys(va);
+ #else
+-	va = pci_alloc_consistent(osh->pdev, size, (dma_addr_t*)pap);
++	va = dma_alloc_coherent(&((struct pci_dev *)osh->pdev)->dev, size, (dma_addr_t*)pap, GFP_ATOMIC);
+ #endif
+ 	return va;
+ }
+@@ -613,7 +613,7 @@
+ #ifdef __ARM_ARCH_7A__
+ 	kfree(va);
+ #else
+-	pci_free_consistent(osh->pdev, size, va, (dma_addr_t)pa);
++	dma_free_coherent(&((struct pci_dev *)osh->pdev)->dev, size, va, (dma_addr_t)pa);
+ #endif
+ }
+ 
+@@ -623,7 +623,7 @@
+ 	int dir;
+ 
+ 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
+-	dir = (direction == DMA_TX)? PCI_DMA_TODEVICE: PCI_DMA_FROMDEVICE;
++	dir = (direction == DMA_TX)? DMA_TO_DEVICE: DMA_FROM_DEVICE;
+ 
+ #if defined(__ARM_ARCH_7A__) && defined(BCMDMASGLISTOSL)
+ 	if (dmah != NULL) {
+@@ -635,13 +635,13 @@
+ 			if (skb_is_nonlinear(skb)) {
+ 				nsegs = skb_to_sgvec(skb, sg, 0, PKTLEN(osh, skb));
+ 				ASSERT((nsegs > 0) && (totsegs + nsegs <= MAX_DMA_SEGS));
+-				pci_map_sg(osh->pdev, sg, nsegs, dir);
++				dma_map_sg(&((struct pci_dev *)osh->pdev)->dev, sg, nsegs, dir);
+ 			} else {
+ 				nsegs = 1;
+ 				ASSERT(totsegs + nsegs <= MAX_DMA_SEGS);
+ 				sg->page_link = 0;
+ 				sg_set_buf(sg, PKTDATA(osh, skb), PKTLEN(osh, skb));
+-				pci_map_single(osh->pdev, PKTDATA(osh, skb), PKTLEN(osh, skb), dir);
++				dma_map_single(&((struct pci_dev *)osh->pdev)->dev, PKTDATA(osh, skb), PKTLEN(osh, skb), dir);
+ 			}
+ 			totsegs += nsegs;
+ 			totlen += PKTLEN(osh, skb);
+@@ -656,7 +656,7 @@
+ 	}
+ #endif 
+ 
+-	return (pci_map_single(osh->pdev, va, size, dir));
++	return (dma_map_single(&((struct pci_dev *)osh->pdev)->dev, va, size, dir));
+ }
+ 
+ void BCMFASTPATH
+@@ -665,8 +665,8 @@
+ 	int dir;
+ 
+ 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
+-	dir = (direction == DMA_TX)? PCI_DMA_TODEVICE: PCI_DMA_FROMDEVICE;
+-	pci_unmap_single(osh->pdev, (uint32)pa, size, dir);
++	dir = (direction == DMA_TX)? DMA_TO_DEVICE: DMA_FROM_DEVICE;
++	dma_unmap_single(&((struct pci_dev *)osh->pdev)->dev, (uint32)pa, size, dir);
+ }
+ 
+ #if defined(BCMDBG_ASSERT)
+@@ -946,7 +946,7 @@
+ void *
+ osl_reg_map(uint32 pa, uint size)
+ {
+-	return (ioremap_nocache((unsigned long)pa, (unsigned long)size));
++	return (ioremap((unsigned long)pa, (unsigned long)size));
+ }
+ 
+ void
+@@ -1080,7 +1080,7 @@
+ 	if (!image)
+ 		return 0;
+ 
+-	rdlen = kernel_read(fp, fp->f_pos, buf, len);
++	rdlen = kernel_read(fp, buf, len, &fp->f_pos);
+ 	if (rdlen > 0)
+ 		fp->f_pos += rdlen;
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.cmd' '--exclude=*.mod*' '--exclude=.*.o.d' '--exclude=Module.symvers' '--exclude=modules.order' src.baseline/wl/sys/wl_cfg80211_hybrid.c src/wl/sys/wl_cfg80211_hybrid.c
+--- a/src/wl/sys/wl_cfg80211_hybrid.c	2026-06-20 20:01:42.980988862 +1200
++++ b/src/wl/sys/wl_cfg80211_hybrid.c	2026-06-20 20:04:43.451819519 +1200
+@@ -50,7 +50,7 @@
+ #endif
+ 
+ static s32 wl_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
+-           enum nl80211_iftype type, u32 *flags, struct vif_params *params);
++           enum nl80211_iftype type, struct vif_params *params);
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+ static s32
+ wl_cfg80211_scan(struct wiphy *wiphy,
+@@ -59,7 +59,7 @@
+ static s32 wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
+            struct cfg80211_scan_request *request);
+ #endif
+-static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed);
++static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx, u32 changed);
+ static s32 wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
+            struct cfg80211_ibss_params *params);
+ static s32 wl_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev);
+@@ -80,7 +80,7 @@
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+ static s32
+-wl_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
++wl_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev, int radio_idx,
+                          enum nl80211_tx_power_setting type, s32 dbm);
+ #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
+ static s32 wl_cfg80211_set_tx_power(struct wiphy *wiphy,
+@@ -91,25 +91,25 @@
+ #endif
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+-static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev, s32 *dbm);
++static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev, int radio_idx, unsigned int link_id, s32 *dbm);
+ #else
+ static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm);
+ #endif
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+ static s32 wl_cfg80211_config_default_key(struct wiphy *wiphy,
+-           struct net_device *dev, u8 key_idx, bool unicast, bool multicast);
++           struct net_device *dev, int link_id, u8 key_idx, bool unicast, bool multicast);
+ #else
+ static s32 wl_cfg80211_config_default_key(struct wiphy *wiphy,
+            struct net_device *dev, u8 key_idx);
+ #endif
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+ static s32 wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
+-           u8 key_idx, bool pairwise, const u8 *mac_addr, struct key_params *params);
++           int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr, struct key_params *params);
+ static s32 wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
+-           u8 key_idx, bool pairwise, const u8 *mac_addr);
++           int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr);
+ static s32 wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
+-           u8 key_idx, bool pairwise, const u8 *mac_addr,
++           int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr,
+            void *cookie, void (*callback) (void *cookie, struct key_params *params));
+ #else
+ static s32 wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
+@@ -432,38 +432,19 @@
+ 	key->iv_initialized = dtoh32(key->iv_initialized);
+ }
+ 
++extern int wl_ioctl_kernel(struct net_device *dev, uint cmd, void *buf, int len);
++
+ static s32
+ wl_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
+ {
+-	struct ifreq ifr;
+-	struct wl_ioctl ioc;
+-	mm_segment_t fs;
+-	s32 err = 0;
+-
+ 	BUG_ON(len < sizeof(int));
+ 
+-	memset(&ioc, 0, sizeof(ioc));
+-	ioc.cmd = cmd;
+-	ioc.buf = arg;
+-	ioc.len = len;
+-	strcpy(ifr.ifr_name, dev->name);
+-	ifr.ifr_data = (caddr_t)&ioc;
+-
+-	fs = get_fs();
+-	set_fs(get_ds());
+-#if defined(WL_USE_NETDEV_OPS)
+-	err = dev->netdev_ops->ndo_do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
+-#else
+-	err = dev->do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
+-#endif
+-	set_fs(fs);
+-
+-	return err;
++	return wl_ioctl_kernel(dev, cmd, arg, len);
+ }
+ 
+ static s32
+ wl_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
+-                         enum nl80211_iftype type, u32 *flags,
++                         enum nl80211_iftype type,
+    struct vif_params *params)
+ {
+ 	struct wl_cfg80211_priv *wl = wiphy_to_wl(wiphy);
+@@ -654,7 +635,7 @@
+ 	return err;
+ }
+ 
+-static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
++static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx, u32 changed)
+ {
+ 	struct wl_cfg80211_priv *wl = wiphy_to_wl(wiphy);
+ 	struct net_device *ndev = wl_to_ndev(wl);
+@@ -1090,7 +1071,7 @@
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+ static s32
+-wl_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
++wl_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev, int radio_idx,
+                          enum nl80211_tx_power_setting type, s32 dbm)
+ #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
+ static s32
+@@ -1150,7 +1131,7 @@
+ }
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+-static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev, s32 *dbm)
++static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev, int radio_idx, unsigned int link_id, s32 *dbm)
+ #else
+ static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm)
+ #endif
+@@ -1175,7 +1156,7 @@
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+ static s32
+ wl_cfg80211_config_default_key(struct wiphy *wiphy,
+-	struct net_device *dev, u8 key_idx, bool unicast, bool multicast)
++	struct net_device *dev, int link_id, u8 key_idx, bool unicast, bool multicast)
+ #else
+ static s32
+ wl_cfg80211_config_default_key(struct wiphy *wiphy,
+@@ -1200,7 +1181,7 @@
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+ static s32
+ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
+-                    u8 key_idx, bool pairwise, const u8 *mac_addr, struct key_params *params)
++                    int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr, struct key_params *params)
+ #else
+ static s32
+ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
+@@ -1321,7 +1302,7 @@
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+ static s32
+ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
+-                    u8 key_idx, bool pairwise, const u8 *mac_addr)
++                    int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr)
+ #else
+ static s32
+ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
+@@ -1364,7 +1345,7 @@
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+ static s32
+ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
+-                    u8 key_idx, bool pairwise, const u8 *mac_addr, void *cookie,
++                    int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr, void *cookie,
+                     void (*callback) (void *cookie, struct key_params * params))
+ #else
+ static s32
+@@ -2397,13 +2378,18 @@
+ 	if (err)
+ 		return err;
+ 
+-	cfg80211_roamed(ndev,
+-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
+-			&wl->conf->channel,	 
+-#endif
+-			(u8 *)&wl->bssid,
+-			conn_info->req_ie, conn_info->req_ie_len,
+-			conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
++	{
++		struct cfg80211_roam_info roam_info;
++
++		memset(&roam_info, 0, sizeof(roam_info));
++		roam_info.links[0].channel = &wl->conf->channel;
++		roam_info.links[0].bssid = (u8 *)&wl->bssid;
++		roam_info.req_ie = conn_info->req_ie;
++		roam_info.req_ie_len = conn_info->req_ie_len;
++		roam_info.resp_ie = conn_info->resp_ie;
++		roam_info.resp_ie_len = conn_info->resp_ie_len;
++		cfg80211_roamed(ndev, &roam_info, GFP_KERNEL);
++	}
+ 	WL_DBG(("Report roaming result\n"));
+ 
+ 	set_bit(WL_STATUS_CONNECTED, &wl->status);
+diff -ruN '--exclude=*.o' '--exclude=*.cmd' '--exclude=*.mod*' '--exclude=.*.o.d' '--exclude=Module.symvers' '--exclude=modules.order' src.baseline/wl/sys/wl_linux.c src/wl/sys/wl_linux.c
+--- a/src/wl/sys/wl_linux.c	2026-06-20 20:01:42.975748408 +1200
++++ b/src/wl/sys/wl_linux.c	2026-06-20 20:05:23.153209211 +1200
+@@ -43,6 +43,7 @@
+ #include <linux/string.h>
+ #include <linux/ethtool.h>
+ #include <linux/completion.h>
++#include <linux/timer.h>
+ #include <linux/usb.h>
+ #include <linux/pci_ids.h>
+ #define WLC_MAXBSSCFG		1	
+@@ -56,7 +57,7 @@
+ #include <asm/irq.h>
+ #include <asm/pgtable.h>
+ #include <asm/uaccess.h>
+-#include <asm/unaligned.h>
++#include <linux/unaligned.h>
+ 
+ #include <proto/802.1d.h>
+ 
+@@ -93,7 +94,7 @@
+ 
+ #include <wlc_wowl.h>
+ 
+-static void wl_timer(ulong data);
++static void wl_timer(struct timer_list *tl);
+ static void _wl_timer(wl_timer_t *t);
+ static struct net_device *wl_alloc_linux_if(wl_if_t *wlif);
+ 
+@@ -582,7 +583,7 @@
+ 	}
+ 	wl->bcm_bustype = bustype;
+ 
+-	if ((wl->regsva = ioremap_nocache(dev->base_addr, PCI_BAR0_WINSZ)) == NULL) {
++	if ((wl->regsva = ioremap(dev->base_addr, PCI_BAR0_WINSZ)) == NULL) {
+ 		WL_ERROR(("wl%d: ioremap() failed\n", unit));
+ 		goto fail;
+ 	}
+@@ -772,7 +773,7 @@
+ 	if ((val & 0x0000ff00) != 0)
+ 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
+ 		bar1_size = pci_resource_len(pdev, 2);
+-		bar1_addr = (uchar *)ioremap_nocache(pci_resource_start(pdev, 2),
++		bar1_addr = (uchar *)ioremap(pci_resource_start(pdev, 2),
+ 			bar1_size);
+ 	wl = wl_attach(pdev->vendor, pdev->device, pci_resource_start(pdev, 0), PCI_BUS, pdev,
+ 		pdev->irq, bar1_addr, bar1_size);
+@@ -1643,10 +1644,7 @@
+ 		goto done2;
+ 	}
+ 
+-	if (segment_eq(get_fs(), KERNEL_DS))
+-		buf = ioc.buf;
+-
+-	else if (ioc.buf) {
++	if (ioc.buf) {
+ 		if (!(buf = (void *) MALLOC(wl->osh, MAX(ioc.len, WLC_IOCTL_MAXLEN)))) {
+ 			bcmerror = BCME_NORESOURCE;
+ 			goto done2;
+@@ -1680,6 +1678,38 @@
+ 	return (OSL_ERROR(bcmerror));
+ }
+ 
++/*
++ * Entry point for in-kernel callers (cfg80211 ops) that already hold a
++ * kernel-space buffer. wl_ioctl() assumes ifr->ifr_data is a userspace
++ * pointer and copy_from_user()s it; that's correct for real ioctl(2)
++ * syscalls but cannot be satisfied for kernel buffers now that set_fs()
++ * is gone, so dispatch straight to wlc_ioctl() instead.
++ */
++int
++wl_ioctl_kernel(struct net_device *dev, uint cmd, void *buf, int len)
++{
++	wl_info_t *wl;
++	wl_if_t *wlif;
++	int bcmerror;
++
++	if (!dev)
++		return -ENETDOWN;
++
++	wl = WL_INFO(dev);
++	wlif = WL_DEV_IF(dev);
++	if (wlif == NULL || wl == NULL || wl->dev == NULL)
++		return -ENETDOWN;
++
++	WL_LOCK(wl);
++	bcmerror = wlc_ioctl(wl->wlc, cmd, buf, len, wlif->wlcif);
++	WL_UNLOCK(wl);
++
++	ASSERT(VALID_BCMERROR(bcmerror));
++	if (bcmerror != 0)
++		wl->pub->bcmerror = bcmerror;
++	return (OSL_ERROR(bcmerror));
++}
++
+ static struct net_device_stats*
+ wl_get_stats(struct net_device *dev)
+ {
+@@ -2053,8 +2083,8 @@
+ void
+ wl_dump_ver(wl_info_t *wl, struct bcmstrbuf *b)
+ {
+-	bcm_bprintf(b, "wl%d: %s %s version %s\n", wl->pub->unit,
+-		__DATE__, __TIME__, EPI_VERSION_STR);
++	bcm_bprintf(b, "wl%d: version %s\n", wl->pub->unit,
++		EPI_VERSION_STR);
+ }
+ 
+ #if defined(BCMDBG)
+@@ -2298,9 +2328,9 @@
+ }
+ 
+ static void
+-wl_timer(ulong data)
++wl_timer(struct timer_list *tl)
+ {
+-	wl_timer_t *t = (wl_timer_t *)data;
++	wl_timer_t *t = timer_container_of(t, tl, timer);
+ 
+ 	if (!WL_ALL_PASSIVE_ENAB(t->wl))
+ 		_wl_timer(t);
+@@ -2352,9 +2382,7 @@
+ 
+ 	bzero(t, sizeof(wl_timer_t));
+ 
+-	init_timer(&t->timer);
+-	t->timer.data = (ulong) t;
+-	t->timer.function = wl_timer;
++	timer_setup(&t->timer, wl_timer, 0);
+ 	t->wl = wl;
+ 	t->fn = fn;
+ 	t->arg = arg;
+@@ -2398,7 +2426,7 @@
+ 	ASSERT(t);
+ 	if (t->set) {
+ 		t->set = FALSE;
+-		if (!del_timer(&t->timer)) {
++		if (!timer_delete(&t->timer)) {
+ #ifdef BCMDBG
+ 			WL_INFORM(("wl%d: Failed to delete timer %s\n", wl->unit, t->name));
+ #endif
+@@ -2915,7 +2943,6 @@
+ 	if (skb == NULL) return;
+ 
+ 	skb->dev = wl->monitor_dev;
+-	skb->dev->last_rx = jiffies;
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22)
+ 	skb_reset_mac_header(skb);
+ #else
+@@ -3244,7 +3271,7 @@
+ static ssize_t
+ wl_proc_read(struct file *filp, char __user *buffer, size_t length, loff_t *offp)
+ {
+-	wl_info_t * wl = PDE_DATA(file_inode(filp));
++	wl_info_t * wl = pde_data(file_inode(filp));
+ #endif
+ 	int bcmerror, len;
+ 	int to_user = 0;
+@@ -3301,7 +3328,7 @@
+ static ssize_t
+ wl_proc_write(struct file *filp, const char __user *buff, size_t length, loff_t *offp)
+ {
+-	wl_info_t * wl = PDE_DATA(file_inode(filp));
++	wl_info_t * wl = pde_data(file_inode(filp));
+ #endif
+ 	int from_user = 0;
+ 	int bcmerror;
+@@ -3334,7 +3361,12 @@
+ 	return length;
+ }
+ 
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
++static const struct proc_ops wl_fops = {
++	.proc_read	= wl_proc_read,
++	.proc_write	= wl_proc_write,
++};
++#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
+ static const struct file_operations wl_fops = {
+ 	.owner	= THIS_MODULE,
+ 	.read	= wl_proc_read,
