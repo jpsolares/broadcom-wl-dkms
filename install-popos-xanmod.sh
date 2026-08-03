@@ -15,20 +15,36 @@ here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 pkgver_us="${PKGVER//./_}"
 tarball_name="hybrid-v35_64-nodebug-pcoem-${pkgver_us}.tar.gz"
 tarball="${BRCM_TARBALL:-${here}/${tarball_name}}"
-tarball_url="${BRCM_TARBALL_URL:-https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/${tarball_name}}"
+tarball_url_primary="${BRCM_TARBALL_URL:-https://docs.broadcom.com/docs-and-downloads/docs/atheros/${tarball_name}}"
+tarball_url_fallback="https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/${tarball_name}"
 
 if [[ ! -f "${tarball}" ]]; then
   echo "No encuentro el tarball: ${tarball}"
   echo
   echo "Nota: por licencia/tamaño no se incluye el tarball en este repo."
   echo "URL esperada:"
-  echo "  ${tarball_url}"
+  echo "  ${tarball_url_primary}"
+  [[ -n "${BRCM_TARBALL_URL:-}" ]] || echo "  ${tarball_url_fallback}"
   echo
   echo "Intentando descargarlo..."
   if command -v curl >/dev/null 2>&1; then
-    curl -fL --retry 3 --retry-delay 2 -o "${tarball}" "${tarball_url}"
+    curl -fL --retry 3 --retry-delay 2 -o "${tarball}" "${tarball_url_primary}" || {
+      if [[ -z "${BRCM_TARBALL_URL:-}" ]]; then
+        echo "WARN: descarga falló, intentando URL alterna..."
+        curl -fL --retry 3 --retry-delay 2 -o "${tarball}" "${tarball_url_fallback}"
+      else
+        exit 1
+      fi
+    }
   elif command -v wget >/dev/null 2>&1; then
-    wget -O "${tarball}" "${tarball_url}"
+    wget -O "${tarball}" "${tarball_url_primary}" || {
+      if [[ -z "${BRCM_TARBALL_URL:-}" ]]; then
+        echo "WARN: descarga falló, intentando URL alterna..."
+        wget -O "${tarball}" "${tarball_url_fallback}"
+      else
+        exit 1
+      fi
+    }
   else
     echo "ERROR: no tengo curl/wget para descargar. Instala uno de los dos y reintenta."
     exit 1
