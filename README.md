@@ -95,10 +95,10 @@ Pop!_OS / Ubuntu (XanMod) helper script:
 sudo ./install-popos-xanmod.sh
 ```
 
-The script expects the Broadcom tarball (`hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz`)
-to be present next to it, but will also try to download it from Broadcom if it's missing.
+The Broadcom tarball (`hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz`) is required.
+If it's not present next to the script, the script will try to download it from Broadcom.
 
-Manual tarball download (optional):
+Manual tarball download:
 
 ```sh
 wget -nc https://docs.broadcom.com/docs-and-downloads/docs/atheros/hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz
