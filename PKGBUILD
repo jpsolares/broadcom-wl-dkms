@@ -4,7 +4,7 @@
 
 pkgname=broadcom-wl-dkms
 pkgver=6.30.223.271
-pkgrel=11
+pkgrel=12
 pkgdesc="Broadcom 802.11 Linux STA wireless driver"
 arch=('i686' 'x86_64')
 url="https://www.broadcom.com/support/download-search/?pf=Wireless+LAN+Infrastructure"
@@ -19,7 +19,8 @@ source=('broadcom-wl-dkms.conf'
         '003-linux47.patch'
         '004-linux48.patch'
         '005-debian-fix-kernel-warnings.patch'
-        '099-kernel-7.0-compat.patch')
+        '099-kernel-7.0-compat.patch'
+        '100-kernel-7.1-compat.patch')
 source_i686=("https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/hybrid-v35-nodebug-pcoem-${pkgver//./_}.tar.gz")
 source_x86_64=("https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/hybrid-v35_64-nodebug-pcoem-${pkgver//./_}.tar.gz")
 sha256sums=('b97bc588420d1542f73279e71975ccb5d81d75e534e7b5717e01d6e6adf6a283'
@@ -29,7 +30,8 @@ sha256sums=('b97bc588420d1542f73279e71975ccb5d81d75e534e7b5717e01d6e6adf6a283'
             '30ce1d5e8bf78aee487d0f3ac76756e1060777f70ed1a9cf95215c3a52cfbe2e'
             '09d709df0c764118ca43117f5c096163d9669a28170da8476d4b8211bd225d2e'
             '2306a59f9e7413f35a0669346dcd05ef86fa37c23b566dceb0c6dbee67e4d299'
-            '13dc2dce5773444bcd3d028c9a0007d4f2e945e99043c49c2d1ec490bf1749fa')
+            '13dc2dce5773444bcd3d028c9a0007d4f2e945e99043c49c2d1ec490bf1749fa'
+            'c61fc40128c898a075302e4d25f8be41cb5d88abce0b7fd4ba726c230d41d7f4')
 sha256sums_i686=('4f8b70b293ac8cc5c70e571ad5d1878d0f29d133a46fe7869868d9c19b5058cd')
 sha256sums_x86_64=('5f79774d5beec8f7636b59c0fb07a03108eef1e3fd3245638b20858c714144be')
 

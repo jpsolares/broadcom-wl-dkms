@@ -1,0 +1,105 @@
+--- a/src/wl/sys/wl_linux.c
++++ b/src/wl/sys/wl_linux.c
+@@ -631,7 +631,7 @@
+ 			WL_ERROR(("wl%d: Error setting MAC ADDRESS\n", unit));
+ 	}
+ #endif 
+-	bcopy(&wl->pub->cur_etheraddr, dev->dev_addr, ETHER_ADDR_LEN);
++	dev_addr_set(dev, (const u8 *)&wl->pub->cur_etheraddr);
+ 
+ 	online_cpus = 1;
+ 
+@@ -1831,7 +1831,7 @@
+ 
+ 	WL_LOCK(wl);
+ 
+-	bcopy(sa->sa_data, dev->dev_addr, ETHER_ADDR_LEN);
++	dev_addr_set(dev, (const u8 *)sa->sa_data);
+ 	err = wlc_iovar_op(wl->wlc, "cur_etheraddr", NULL, 0, sa->sa_data, ETHER_ADDR_LEN,
+ 		IOV_SET, (WL_DEV_IF(dev))->wlcif);
+ 	WL_UNLOCK(wl);
+@@ -2990,7 +2990,7 @@
+ 	else
+ 		dev->type = ARPHRD_IEEE80211_RADIOTAP;
+ 
+-	bcopy(wl->dev->dev_addr, dev->dev_addr, ETHER_ADDR_LEN);
++	dev_addr_set(dev, wl->dev->dev_addr);
+ 
+ #if defined(WL_USE_NETDEV_OPS)
+ 	dev->netdev_ops = &wl_netdev_monitor_ops;
+--- a/src/wl/sys/wl_cfg80211_hybrid.c
++++ b/src/wl/sys/wl_cfg80211_hybrid.c
+@@ -1771,18 +1771,73 @@
+ }
+ #endif 
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0)
++static s32
++wl_cfg80211_get_station_wdev(struct wiphy *wiphy, struct wireless_dev *wdev,
++			     const u8 *mac, struct station_info *sinfo)
++{
++	if (!wdev || !wdev->netdev)
++		return -ENODEV;
++	return wl_cfg80211_get_station(wiphy, wdev->netdev, mac, sinfo);
++}
++
++static s32
++wl_cfg80211_add_key_wdev(struct wiphy *wiphy, struct wireless_dev *wdev,
++			 int link_id, u8 key_idx, bool pairwise,
++			 const u8 *mac_addr, struct key_params *params)
++{
++	if (!wdev || !wdev->netdev)
++		return -ENODEV;
++	return wl_cfg80211_add_key(wiphy, wdev->netdev, link_id, key_idx, pairwise,
++				   mac_addr, params);
++}
++
++static s32
++wl_cfg80211_del_key_wdev(struct wiphy *wiphy, struct wireless_dev *wdev,
++			 int link_id, u8 key_idx, bool pairwise,
++			 const u8 *mac_addr)
++{
++	if (!wdev || !wdev->netdev)
++		return -ENODEV;
++	return wl_cfg80211_del_key(wiphy, wdev->netdev, link_id, key_idx, pairwise,
++				   mac_addr);
++}
++
++static s32
++wl_cfg80211_get_key_wdev(struct wiphy *wiphy, struct wireless_dev *wdev,
++			 int link_id, u8 key_idx, bool pairwise,
++			 const u8 *mac_addr, void *cookie,
++			 void (*callback)(void *cookie, struct key_params *params))
++{
++	if (!wdev || !wdev->netdev)
++		return -ENODEV;
++	return wl_cfg80211_get_key(wiphy, wdev->netdev, link_id, key_idx, pairwise,
++				   mac_addr, cookie, callback);
++}
++#endif
++
+ static struct cfg80211_ops wl_cfg80211_ops = {
+ 	.change_virtual_intf = wl_cfg80211_change_iface,
+ 	.scan = wl_cfg80211_scan,
+ 	.set_wiphy_params = wl_cfg80211_set_wiphy_params,
+ 	.join_ibss = wl_cfg80211_join_ibss,
+ 	.leave_ibss = wl_cfg80211_leave_ibss,
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0)
++	.get_station = wl_cfg80211_get_station_wdev,
++#else
+ 	.get_station = wl_cfg80211_get_station,
++#endif
+ 	.set_tx_power = wl_cfg80211_set_tx_power,
+ 	.get_tx_power = wl_cfg80211_get_tx_power,
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0)
++	.add_key = wl_cfg80211_add_key_wdev,
++	.del_key = wl_cfg80211_del_key_wdev,
++	.get_key = wl_cfg80211_get_key_wdev,
++#else
+ 	.add_key = wl_cfg80211_add_key,
+ 	.del_key = wl_cfg80211_del_key,
+ 	.get_key = wl_cfg80211_get_key,
++#endif
+ 	.set_default_key = wl_cfg80211_config_default_key,
+ 	.set_power_mgmt = wl_cfg80211_set_power_mgmt,
+ 	.connect = wl_cfg80211_connect,

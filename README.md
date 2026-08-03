@@ -1,9 +1,17 @@
 # broadcom-wl-dkms (kernel 7.x compat fork)
 
 This is the AUR [`broadcom-wl-dkms`](https://aur.archlinux.org/packages/broadcom-wl-dkms)
-package (Broadcom's proprietary `wl` STA driver) with an extra patch,
-`099-kernel-7.0-compat.patch`, that gets it building and working again on
-modern (7.x-era) Linux kernels.
+package (Broadcom's proprietary `wl` STA driver) with extra patches that get
+it building and working again on modern (7.x-era) Linux kernels.
+
+Basado en / Based on: https://github.com/nzarg/broadcom-wl-dkms
+
+Extra patches in this fork:
+
+- `099-kernel-7.0-compat.patch` (kernel 7.0+ compatibility base)
+- `100-kernel-7.1-compat.patch` (additional kernel 7.1+ fixes)
+
+Target / probado con: Broadcom BCM4360 (PCI ID `14e4:43a0`, Apple subsystem `106b:0134`).
 
 ## Who needs this
 
@@ -60,10 +68,17 @@ kernel 4.8-era compatibility. By kernel 7.x, on top of that:
   for this module only — it does not touch IBT/CFI enforcement anywhere
   else on the system.
 
-All of the above is in `099-kernel-7.0-compat.patch`, applied after the
+Most of the above is in `099-kernel-7.0-compat.patch`, applied after the
 AUR package's existing patches 001-005 (which already cover some
 kernel-4.7/4.8-era and IEEE80211_BAND→NL80211_BAND renames — 099 was
 written against that baseline and doesn't duplicate them).
+
+Additional 7.1-era API fixes are in `100-kernel-7.1-compat.patch`:
+
+- Replace `bcopy()` writes to `dev->dev_addr` with `dev_addr_set()`.
+- For kernels 7.0+, wrap the `cfg80211_ops` callbacks that now take a
+  `struct wireless_dev *` so the driver can continue to use its existing
+  `struct net_device *` implementations.
 
 ## Installing
 
@@ -71,7 +86,7 @@ written against that baseline and doesn't duplicate them).
 makepkg -si
 ```
 
-Standard `PKGBUILD` build. Pulls Broadcom's source tarball, applies all six
+Standard `PKGBUILD` build. Pulls Broadcom's source tarball, applies all seven
 patches via DKMS, builds against your running kernel, and installs.
 
 After install, blacklist the in-tree drivers that would otherwise fight

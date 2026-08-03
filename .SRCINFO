@@ -1,7 +1,7 @@
 pkgbase = broadcom-wl-dkms
 	pkgdesc = Broadcom 802.11 Linux STA wireless driver
 	pkgver = 6.30.223.271
-	pkgrel = 11
+	pkgrel = 12
 	url = https://www.broadcom.com/support/download-search/?pf=Wireless+LAN+Infrastructure
 	install = broadcom-wl-dkms.install
 	arch = i686
@@ -17,6 +17,7 @@ pkgbase = broadcom-wl-dkms
 	source = 004-linux48.patch
 	source = 005-debian-fix-kernel-warnings.patch
 	source = 099-kernel-7.0-compat.patch
+	source = 100-kernel-7.1-compat.patch
 	sha256sums = b97bc588420d1542f73279e71975ccb5d81d75e534e7b5717e01d6e6adf6a283
 	sha256sums = 7bcdd485343b4bba75c2f8b248e7cb4af57e4e585cb383c79bce8e815569c195
 	sha256sums = 32e505a651fdb9fd5e4870a9d6de21dd703dead768c2b3340a2ca46671a5852f
@@ -25,6 +26,7 @@ pkgbase = broadcom-wl-dkms
 	sha256sums = 09d709df0c764118ca43117f5c096163d9669a28170da8476d4b8211bd225d2e
 	sha256sums = 2306a59f9e7413f35a0669346dcd05ef86fa37c23b566dceb0c6dbee67e4d299
 	sha256sums = 13dc2dce5773444bcd3d028c9a0007d4f2e945e99043c49c2d1ec490bf1749fa
+	sha256sums = c61fc40128c898a075302e4d25f8be41cb5d88abce0b7fd4ba726c230d41d7f4
 	source_i686 = https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/hybrid-v35-nodebug-pcoem-6_30_223_271.tar.gz
 	sha256sums_i686 = 4f8b70b293ac8cc5c70e571ad5d1878d0f29d133a46fe7869868d9c19b5058cd
 	source_x86_64 = https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz

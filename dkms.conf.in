@@ -8,6 +8,7 @@ PATCH[2]="003-linux47.patch"
 PATCH[3]="004-linux48.patch"
 PATCH[4]="005-debian-fix-kernel-warnings.patch"
 PATCH[5]="099-kernel-7.0-compat.patch"
+PATCH[6]="100-kernel-7.1-compat.patch"
 # Broadcom's shipped wlc_hybrid.o_shipped blob predates objtool/IBT
 # annotations entirely; there's no source to fix it, so skip objtool
 # validation for this module's build only.
