@@ -95,7 +95,7 @@ The Broadcom tarball (`hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz`) is requ
 Download it first (recommended):
 
 ```sh
-wget -nc https://docs.broadcom.com/docs-and-downloads/docs/atheros/hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz
+wget -nc [https://docs.broadcom.com/docs-and-downloads/docs/atheros/hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz](https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz)
 ```
 
 Then run:
