@@ -91,17 +91,17 @@ patches via DKMS, builds against your running kernel, and installs.
 
 Pop!_OS / Ubuntu (XanMod) helper script:
 
-```sh
-sudo ./install-popos-xanmod.sh
-```
-
 The Broadcom tarball (`hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz`) is required.
-If it's not present next to the script, the script will try to download it from Broadcom.
-
-Manual tarball download:
+Download it first (recommended):
 
 ```sh
 wget -nc https://docs.broadcom.com/docs-and-downloads/docs/atheros/hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz
+```
+
+Then run:
+
+```sh
+sudo ./install-popos-xanmod.sh
 ```
 
 After install, blacklist the in-tree drivers that would otherwise fight
