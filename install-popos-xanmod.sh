@@ -12,11 +12,27 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-tarball="${here}/hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz"
+pkgver_us="${PKGVER//./_}"
+tarball_name="hybrid-v35_64-nodebug-pcoem-${pkgver_us}.tar.gz"
+tarball="${BRCM_TARBALL:-${here}/${tarball_name}}"
+tarball_url="${BRCM_TARBALL_URL:-https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/${tarball_name}}"
 
 if [[ ! -f "${tarball}" ]]; then
   echo "No encuentro el tarball: ${tarball}"
-  exit 1
+  echo
+  echo "Nota: por licencia/tamaño no se incluye el tarball en este repo."
+  echo "URL esperada:"
+  echo "  ${tarball_url}"
+  echo
+  echo "Intentando descargarlo..."
+  if command -v curl >/dev/null 2>&1; then
+    curl -fL --retry 3 --retry-delay 2 -o "${tarball}" "${tarball_url}"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "${tarball}" "${tarball_url}"
+  else
+    echo "ERROR: no tengo curl/wget para descargar. Instala uno de los dos y reintenta."
+    exit 1
+  fi
 fi
 
 dest="/usr/src/${MODNAME}-${PKGVER}"

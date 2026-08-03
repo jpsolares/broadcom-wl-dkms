@@ -95,6 +95,9 @@ Pop!_OS / Ubuntu (XanMod) helper script:
 sudo ./install-popos-xanmod.sh
 ```
 
+The script expects the Broadcom tarball (`hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz`)
+to be present next to it, but will also try to download it from Broadcom if it's missing.
+
 After install, blacklist the in-tree drivers that would otherwise fight
 `wl` for the device (skip any line for a driver you don't have loaded):
 
