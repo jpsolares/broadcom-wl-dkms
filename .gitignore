@@ -4,3 +4,7 @@
 *.pkg.tar.*
 pkg/
 src/
+buildtest/
+gen/
+localdkms/
+staging/

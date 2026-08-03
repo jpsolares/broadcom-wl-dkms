@@ -89,6 +89,12 @@ makepkg -si
 Standard `PKGBUILD` build. Pulls Broadcom's source tarball, applies all seven
 patches via DKMS, builds against your running kernel, and installs.
 
+Pop!_OS / Ubuntu (XanMod) helper script:
+
+```sh
+sudo ./install-popos-xanmod.sh
+```
+
 After install, blacklist the in-tree drivers that would otherwise fight
 `wl` for the device (skip any line for a driver you don't have loaded):
 
